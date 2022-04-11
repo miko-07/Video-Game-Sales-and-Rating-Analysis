@@ -1,0 +1,242 @@
+---
+title: 'STAT447 Project: Data Visualization'
+author: "Subin Cho"
+date: "12/09/2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(ggpubr)
+```
+
+
+```{r message = FALSE, warning = FALSE}
+# read data
+video_games_sales = read_csv("Video_Games_Sales_as_at_22_Dec_2016.csv")
+
+# remove NA rows
+complete_cases = complete.cases(video_games_sales)
+data = video_games_sales[complete_cases, ]
+
+# "N/A" to NA 
+data$User_Score = as.numeric(data$User_Score)
+data[data == "N/A"] = NA
+data = na.omit(data)
+
+# create a new column "new_platform"
+nintendo = c("Wii", "DS", "3DS", "WiiU", "GC", "GBA")
+xbox = c("X360", "XB", "XOne")
+ps = c("PS3", "PS4", "PS2", "PS", "PSP", "PSV")
+
+data = data %>%
+  mutate(new_platform = case_when(
+    Platform %in% nintendo ~ "Nintendo",
+    Platform %in% xbox ~ "XBox",
+    Platform %in% ps ~ "PS",
+    Platform == "PC" ~ "PC",
+    Platform == "DC" ~ "DC"
+  ))
+```
+
+
+```{r warning=FALSE}
+# g1: Total Video Game Sales by Platform
+my_colors5 = c("darkgreen", "#d1495b", "#edae49", "dodgerblue", "#8d96a3")
+g1 = ggplot(data, aes(x = Year_of_Release, fill = new_platform)) + 
+  geom_histogram(stat = "count") +
+  scale_x_discrete(breaks = scales::pretty_breaks(n = 11)) +
+  xlab("Year of Release") + 
+  ylab("Total Sales (in millions)") + 
+  ggtitle("Total Video Game Sales by Platform") +
+  scale_fill_manual(values = my_colors5) +
+  theme_grey() +
+  theme(legend.position = "bottom") +
+  theme(legend.title = element_blank())
+
+g1
+```
+
+```{r warning=FALSE}
+# 4 Platform: Nintendo, PC, PS, XBox
+data_g2 = subset(data, new_platform != "DC")
+
+# plot
+my_colors4 = c("#d1495b", "#edae49", "dodgerblue", "#8d96a3")
+g2 = ggplot(data_g2, aes(x = Year_of_Release, fill = new_platform)) + 
+  geom_histogram(stat = "count") +
+  scale_x_discrete(breaks = scales::pretty_breaks(n = 4)) +
+  xlab("Year of Release") + 
+  ylab("Total Sales (in millions)") + 
+  ggtitle("Total Video Game Sales by Platform") + 
+  facet_wrap( ~ new_platform) +
+  scale_fill_manual(values = my_colors4) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+g2
+```
+
+```{r message = FALSE, warning = FALSE}
+# Genre and Sales by region
+
+# NA
+g3_NA = data %>%
+  select(Genre, NA_Sales) %>%
+  group_by(Genre) %>%
+  summarise(sumNA = cumsum(NA_Sales)) %>%
+  mutate(totNA = max(sumNA)) %>%
+  distinct(totNA) %>%
+  rename("NA" = totNA)
+
+# EU
+g3_EU = data %>%
+  select(Genre, EU_Sales) %>%
+  group_by(Genre) %>%
+  summarise(sumEU = cumsum(EU_Sales)) %>%
+  mutate(EU = max(sumEU)) %>%
+  distinct(EU)
+
+# JP
+g3_JP = data %>%
+  select(Genre, JP_Sales) %>%
+  group_by(Genre) %>%
+  summarise(sumJP = cumsum(JP_Sales)) %>%
+  mutate(JP = max(sumJP)) %>%
+  distinct(JP)
+
+# Other
+g3_Other = data %>%
+  select(Genre, Other_Sales) %>%
+  group_by(Genre) %>%
+  summarise(sumOther = cumsum(Other_Sales)) %>%
+  mutate(Other = max(sumOther)) %>%
+  distinct(Other)
+
+# left_join all
+g3_join = g3_NA %>%
+  left_join(g3_EU, by = "Genre") %>%
+  left_join(g3_JP, by = "Genre") %>%
+  left_join(g3_Other, by = "Genre") 
+
+# wide to long
+g3_long = gather(g3_join, Region, totsales, "NA":Other)
+
+# plot
+g3 = ggplot(g3_long, aes(y = reorder(Genre, -totsales), x = totsales, 
+                         fill = Region)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  facet_wrap( ~ Region, scales = "free") +
+  theme_classic() +
+  xlab("Total Sales (in millions)") + 
+  ylab(NULL) + 
+  ggtitle("Total Sales vs. Genre") 
+
+# add text
+EU_text = data.frame(Genre = "Puzzle", totsales = 200, Region = "EU")
+JP_text = data.frame(Genre = "Puzzle", totsales = 75, Region = "JP")
+NA_text = data.frame(Genre = "Puzzle", totsales = 350, Region = "NA")
+Other_text = data.frame(Genre = "Puzzle", totsales = 85, Region = "Other")
+
+g3 = g3 + 
+  geom_text(data = EU_text, label = "Action > Shooter > Sports", size = 3.5) + 
+  geom_text(data = JP_text, label = "Role-Playing > Action > Platform", 
+            size = 3.5) +
+  geom_text(data = NA_text, label = "Action > Sports > Shooter", size = 3.5) + 
+  geom_text(data = Other_text,label = "Action > Sports > Shooter", size = 3.5) +
+  theme(axis.text.y = element_text(size = 6))
+
+g3
+
+```
+```{r message = FALSE, warning = FALSE}
+# Critic and User Score by Platform
+
+# plot
+g4 = ggplot(data, aes(y = Critic_Score, x = new_platform, 
+                             fill = new_platform)) +
+  geom_boxplot() +
+  ggtitle("Critic Score by Platform") + 
+  xlab("Platform") +
+  ylab("Critic Score") +
+  theme(legend.position = "none") +
+  theme(legend.title=element_blank()) +
+  scale_fill_manual(values = my_colors5)
+
+
+# plot
+g5 = ggplot(data, aes(y = User_Score, x = new_platform, 
+                             fill = new_platform)) +
+  geom_boxplot() +
+  ggtitle("User Score by Platform") + 
+  xlab("Platform") +
+  ylab("User Score") +
+  theme(legend.position = "none") +
+  theme(legend.title=element_blank()) +
+  scale_fill_manual(values = my_colors5)
+
+# Critic Score Table
+critic_table = desc_statby(data, measure.var = "Critic_Score", 
+                           grps = "new_platform")
+critic_table = critic_table[, c("new_platform", "length", "mean", "sd")]
+colnames(critic_table) = c("Platform", "Count", "Mean", "SD")
+critic_table = ggtexttable(critic_table, rows = NULL, theme = ttheme("mBlue"))
+
+# User Score Table
+user_table = desc_statby(data, measure.var = "User_Score", 
+                           grps = "new_platform")
+user_table = user_table[, c("new_platform", "length", "mean", "sd")]
+colnames(user_table) = c("Platform", "Count", "Mean", "SD")
+user_table = ggtexttable(user_table, rows = NULL, theme = ttheme("mOrange"))
+
+g45 = ggarrange(g4, g5, critic_table, user_table, 
+                ncol = 2, nrow = 2, align = "v")
+
+g45
+```
+
+
+```{r message = FALSE, warning = FALSE}
+# remove 3 Ratings - only one record for AO, K-A, RP
+data_rating = data %>%
+  filter(!(Rating %in% c("AO", "K-A", "RP")))
+
+# plot
+g6 = ggplot(data_rating, aes(x = Critic_Score, y = Rating, fill = Rating)) + 
+  geom_boxplot() +
+  xlab("Critic Score") +
+  ylab("Rating") +
+  theme(legend.position = "top") +
+  theme(legend.title=element_blank())
+g6
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,108 @@
+---
+title: "video sales"
+author: "Michael Zhu"
+date: "12/1/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+
+# 1 Data import and cleaning
+```{r, message=FALSE, warning=FALSE}
+video_games_sales = read_csv("Video_Games_Sales_as_at_22_Dec_2016.csv")
+complete_cases = complete.cases(video_games_sales)
+data = video_games_sales[complete_cases, ]
+```
+
+# 2 data wrangling
+
+For this part, we use data wrangling techniques to extract more infomation from the data about sales of video games. 
+
+
+## 2-1 Basic Information
+
+```{r}
+data %>% count(Platform) %>% arrange(desc(n))
+data %>% count(Genre) %>% arrange(desc(n))
+head(data %>% count(Publisher) %>% arrange(desc(n)), 10)
+head(data %>% count(Developer) %>% arrange(desc(n)),10)
+data %>% count(Rating) %>% arrange(desc(n))
+```
+
+Among all games that are listed in Metacritic, PS2 is the most console that gaming can run, and DC is the least console that gaming can run. Action games take the most percentage and puzzle games take the least percentage. Electronic Arts publishes the most amount of games. EA Canada developes the most amount of games. Only 4 games has rating RP, AO, and K-A.
+
+## 2-2 Sales information
+
+```{r}
+# NA sales percentage
+sum(data$NA_Sales)/sum(data$Global_Sales) 
+# EU sales percentage
+sum(data$EU_Sales)/sum(data$Global_Sales)
+# JP sales percentage
+sum(data$JP_Sales)/sum(data$Global_Sales)
+# Other sales percentage
+sum(data$Other_Sales)/sum(data$Global_Sales)
+
+head(data %>% arrange(desc(NA_Sales)) %>% select(Name, Platform, NA_Sales), 1)
+head(data %>% arrange(desc(EU_Sales)) %>% select(Name, Platform, EU_Sales), 1)
+head(data %>% arrange(desc(JP_Sales)) %>% select(Name, Platform, JP_Sales), 1)
+```
+
+We can notice that over half of the sales are from North America. In North America and Europe, the most selling game is Wii Sports. In Japan, the most selling game is New Super Mario Bros.
+
+## 2-3 Muti-platform games
+
+```{r}
+nrow(data)-nrow(data %>% distinct(Name))
+```
+
+Among all games, 2527 of games can be played on at least two types of consoles.
+
+## 2-4 Score information
+
+### Score by Metacritic staff
+```{r}
+head(data %>% arrange(desc(Critic_Score)) %>% select('Name','Platform' ,'Critic_Score'), 10) 
+tail(data %>% arrange(desc(Critic_Score)) %>% select('Name','Platform' ,'Critic_Score'), 10)
+```
+
+Grand Theft Auto IV on both platform, Tony Hawk's Pro Skater 2, and SoulCalibur reveivethe highest score by Metacritic staff, and Ride to Hell on PS3 receives the lowest score by Metacritic staff.
+
+### Score by Metacritic's subscribers
+
+```{r}
+head(data %>% arrange(desc(User_Score)) %>% select('Name','Platform' ,'User_Score'), 10) 
+tail(data %>% arrange(desc(User_Score)) %>% select('Name','Platform' ,'User_Score'), 10)
+```
+
+Harvest Moon: Friends of Mineral Town and Boktai: The Sun is in Your Hand recieves the highest score by Metacritic's subscribers. Power Gig: Rise of the SixString and Charlie and the Chocolate Factory recieves the lowest score by Metacritic's subscribers.
+
+### Other score infomation
+
+```{r}
+head(data %>% group_by(Genre) %>% summarise(genre_ave_cscore = mean(Critic_Score)) %>% arrange(desc(genre_ave_cscore)), 5)
+tail(data %>% group_by(Genre) %>% summarise(genre_ave_cscore = mean(Critic_Score)) %>% arrange(desc(genre_ave_cscore)), 5)
+
+head(data %>% group_by(Genre) %>% summarise(genre_ave_uscore = mean(as.numeric(User_Score))) %>% arrange(desc(genre_ave_uscore)), 5)
+tail(data %>% group_by(Genre) %>% summarise(genre_ave_uscore = mean(as.numeric(User_Score))) %>% arrange(desc(genre_ave_uscore)), 5)
+```
+
+Strategy, Role-playing, and Puzzle games receives higher scores from both Metacritic's staff and subscribers.
+Racing, Action, Misc games receives relatively lower scores from both Metacritic's staff and subscribers.
+
+```{r}
+head(data %>% group_by(Developer) %>% summarise(developer_ave_cscore = mean(Critic_Score)) %>% arrange(desc(developer_ave_cscore)), 5)
+tail(data %>% group_by(Developer) %>% summarise(developer_ave_cscore = mean(Critic_Score)) %>% arrange(desc(developer_ave_cscore)), 5)
+
+head(data %>% group_by(Developer) %>% summarise(developer_ave_uscore = mean(as.numeric(User_Score))) %>% arrange(desc(developer_ave_uscore)), 5)
+tail(data %>% group_by(Developer) %>% summarise(developer_ave_uscore = mean(as.numeric(User_Score))) %>% arrange(desc(developer_ave_uscore)), 5)
+
+```
+
+Metacritic's staff and subscribers have different taste about the developers of the games.
